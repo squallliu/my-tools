@@ -1,0 +1,5 @@
+#!/bin/bash
+
+find ./ -name '*.iml' | xargs rm -rf
+find ./ -name target | xargs rm -rf
+find ./ -name .svn | xargs rm -rf
