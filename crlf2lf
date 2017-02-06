@@ -1,0 +1,16 @@
+#!/bin/bash
+
+find ./ -name '*.java' | xargs sed -i 's/\r//g'
+find ./ -name '*.xml' | xargs sed -i 's/\r//g'
+find ./ -name '*.tld' | xargs sed -i 's/\r//g'
+find ./ -name '*.txt' | xargs sed -i 's/\r//g'
+find ./ -name '*.properties' | xargs sed -i 's/\r//g'
+find ./ -name '*.sql' | xargs sed -i 's/\r//g'
+find ./ -name '*.MF' | xargs sed -i 's/\r//g'
+find ./ -name '*.vm' | xargs sed -i 's/\r//g'
+find ./ -name '*.js' | xargs sed -i 's/\r//g'
+find ./ -name '*.html' | xargs sed -i 's/\r//g'
+find ./ -name '*.htm' | xargs sed -i 's/\r//g'
+find ./ -name '*.css' | xargs sed -i 's/\r//g'
+find ./ -name '*.jsp' | xargs sed -i 's/\r//g'
+
