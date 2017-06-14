@@ -29,15 +29,10 @@ __ionic_commands() {
 
   commands=(
   start'[Starts a new Ionic project in the specified PATH]'
-  state'[Saves or restores state of your Ionic Application using the package.json file]'
+  cordova'[cordova command]'
   help'[Provides help for a certain command]'
   info'[List information about the users runtime environment]'
   serve'[Start a local development server for app dev/testing]'
-  run'[Run an Ionic project on a connected device]'
-  build'[Build (prepare + compile) an Ionic project for a given platform]'
-  emulate'[Emulate an Ionic project on a simulator or emulator]'
-  platform'[Add platform target for building an Ionic app]'
-  plugin'[Add a Cordova plugin]'
   {generate,g}'[Generate pages and components]'
   resources'[Automatically create icon and splash screen resources]'
   )
@@ -66,19 +61,19 @@ __ionic_start_options() {
   _values 'command' $commands
 }
 
-__ionic_state() {
+__ionic_cordova() {
   local context state line curcontext="$curcontext"
 
   if (( CURRENT > 2 )); then
     (( CURRENT-- ))
     shift word
-    _call_function - "__ionic_state_${words[2]}" || _nothing
+    _call_function - "__ionic_${words[2]}" || _nothing
   else
-    __ionic_state_commands
+    __ionic_cordova_commands
   fi
 }
 
-__ionic_state_commands() {
+__ionic_cordova_commands() {
  local context state line curcontext="$curcontext"
 
  _arguments -C \
@@ -89,12 +84,11 @@ __ionic_state_commands() {
 local -a commands
 
 commands=(
-  save'[Save the platforms and plugins into package.json]'
-  restore'[Restore the platforms and plugins from package.json]'
-  clear'[Clear the package.json of plugins and platforms, as well as clear out the folders]'
-  reset'[Clear out the platforms and plugins directories, and reinstall plugins and platforms]'
-  --plugins'[Only do operations with plugins]'
-  --platforms'[Only do operations with platforms]'
+  run'[Run an Ionic project on a connected device]'
+  build'[Build (prepare + compile) an Ionic project for a given platform]'
+  emulate'[Emulate an Ionic project on a simulator or emulator]'
+  platform'[Add platform target for building an Ionic app]'
+  plugin'[Add a Cordova plugin]'
   )
 
 _values 'command' $commands
@@ -164,7 +158,7 @@ __ionic_platform() {
   if (( CURRENT > 2 )); then
     (( CURRENT-- ))
     shift word
-    _call_function - "__ionic_platform_${words[2]}" || _nothing
+    _call_function - "__ionic_platform_${words[3]}" || _nothing
   else
     __ionic_platform_commands
   fi
