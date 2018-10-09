@@ -25,6 +25,7 @@ var path = require('path');
 var fs = require('fs');
 var CordovaError = require('cordova-common').CordovaError;
 var isUrl = require('is-url');
+var isGitUrl = require('is-git-url');
 var hostedGitInfo = require('hosted-git-info');
 
 /*
@@ -37,75 +38,75 @@ var hostedGitInfo = require('hosted-git-info');
  * @return {String|Promise}    Returns string of the absolute path to the installed module.
  *
  */
-module.exports = function(target, dest, opts) {
+module.exports = function (target, dest, opts) {
   var packageManager = opts.packageManager || 'npm';
   var fetchArgs = opts.link ? ['link'] : packageManager === 'yarn' ? ['add'] : ['install'];
-  opts = opts || {};
-  var tree1;
-  var nodeModulesDir = dest;
+    opts = opts || {};
+    var tree1;
+    var nodeModulesDir = dest;
 
-  // check if npm is installed
-  return isPackageManagerInstalled()
-    .then(function() {
-      if (dest && target) {
-        // add target to fetchArgs Array
-        fetchArgs.push(target);
+    // check if npm is installed
+  return isPackageManagerInstalled(packageManager)
+        .then(function () {
+            if (dest && target) {
+                // add target to fetchArgs Array
+                fetchArgs.push(target);
 
-        // append node_modules to nodeModulesDir if it doesn't come included
-        if (path.basename(dest) !== 'node_modules') {
-          nodeModulesDir = path.resolve(path.join(dest, 'node_modules'));
-        }
-        // create node_modules if it doesn't exist
-        if (!fs.existsSync(nodeModulesDir)) {
-          shell.mkdir('-p', nodeModulesDir);
-        }
-      } else return Q.reject(new CordovaError('Need to supply a target and destination'));
+                // append node_modules to nodeModulesDir if it doesn't come included
+                if (path.basename(dest) !== 'node_modules') {
+                    nodeModulesDir = path.resolve(path.join(dest, 'node_modules'));
+                }
+                // create node_modules if it doesn't exist
+                if (!fs.existsSync(nodeModulesDir)) {
+                    shell.mkdir('-p', nodeModulesDir);
+                }
+            } else return Q.reject(new CordovaError('Need to supply a target and destination'));
 
-      // set the directory where npm install will be run
-      opts.cwd = dest;
-      // npm should use production by default when install is npm run
+            // set the directory where npm install will be run
+            opts.cwd = dest;
+            // npm should use production by default when install is npm run
 
-      if ((opts.production) || (opts.production === undefined)) {
-        fetchArgs.push('--production');
-        opts.production = true;
-      }
+            if ((opts.production) || (opts.production === undefined)) {
+                fetchArgs.push('--production');
+                opts.production = true;
+            }
 
-      // if user added --save flag, pass it to npm install command
+            // if user added --save flag, pass it to npm install command
       if (packageManager === 'npm') {
-        if (opts.save_exact) {
-          events.emit('verbose', 'saving exact');
-          fetchArgs.push('--save-exact');
-        } else if (opts.save) {
-          events.emit('verbose', 'saving');
-          fetchArgs.push('--save');
-        } else {
-          fetchArgs.push('--no-save');
-        }
+            if (opts.save_exact) {
+                events.emit('verbose', 'saving exact');
+                fetchArgs.push('--save-exact');
+            } else if (opts.save) {
+                events.emit('verbose', 'saving');
+                fetchArgs.push('--save');
+            } else {
+                fetchArgs.push('--no-save');
+            }
       }
-      // Grab json object of installed modules before npm install
-      return depls(nodeModulesDir);
-    })
-    .then(function(depTree) {
-      tree1 = depTree;
-      // install new module
+            // Grab json object of installed modules before npm install
+            return depls(nodeModulesDir);
+        })
+        .then(function (depTree) {
+            tree1 = depTree;
+            // install new module
       return superspawn.spawn(packageManager, fetchArgs, opts);
-    })
-    .then(function(output) {
-      // Grab object of installed modules after npm install
-      return depls(nodeModulesDir);
-    })
-    .then(function(depTree2) {
-      var tree2 = depTree2;
+        })
+        .then(function (output) {
+            // Grab object of installed modules after npm install
+            return depls(nodeModulesDir);
+        })
+        .then(function (depTree2) {
+            var tree2 = depTree2;
 
-      // getJsonDiff will fail if the module already exists in node_modules.
-      // Need to use trimID in that case.
-      // This could happen on a platform update.
-      var id = getJsonDiff(tree1, tree2) || trimID(target);
-      return module.exports.getPath(id, nodeModulesDir, target);
-    })
-    .fail(function(err) {
-      return Q.reject(new CordovaError(err));
-    });
+            // getJsonDiff will fail if the module already exists in node_modules.
+            // Need to use trimID in that case.
+            // This could happen on a platform update.
+            var id = getJsonDiff(tree1, tree2) || trimID(target);
+            return module.exports.getPath(id, nodeModulesDir, target);
+        })
+        .fail(function (err) {
+            return Q.reject(new CordovaError(err));
+        });
 };
 
 /*
@@ -119,25 +120,25 @@ module.exports = function(target, dest, opts) {
  * @return {String}         String containing the key value of the difference between the two objects
  *
  */
-function getJsonDiff(obj1, obj2) {
-  var result = [];
-  // regex to filter out peer dependency warnings from result
-  var re = /UNMET PEER DEPENDENCY/;
+function getJsonDiff (obj1, obj2) {
+    var result = [];
+    // regex to filter out peer dependency warnings from result
+    var re = /UNMET PEER DEPENDENCY/;
 
-  for (var key in obj2) {
-    // if it isn't a unmet peer dependency, continue
-    if (key.search(re) === -1) {
-      if (obj2[key] !== obj1[key]) {
-        result.push(key);
-      }
+    for (var key in obj2) {
+        // if it isn't a unmet peer dependency, continue
+        if (key.search(re) === -1) {
+            if (obj2[key] !== obj1[key]) {
+                result.push(key);
+            }
+        }
     }
-  }
-  if (result.length > 1) {
-    // something went wrong if we have more than one module installed at a time
-    return false;
-  }
-  // only return the first element
-  return result[0];
+    if (result.length > 1) {
+        // something went wrong if we have more than one module installed at a time
+        return false;
+    }
+    // only return the first element
+    return result[0];
 }
 /*
  * Takes the specified target and returns the moduleID
@@ -147,51 +148,56 @@ function getJsonDiff(obj1, obj2) {
  * get the moduleID of the installed module.
  *
  * @param {String} target    target that was passed into cordova-fetch.
- *                           can be moduleID, moduleID@version or gitURL
+ *                           can be moduleID, moduleID@version, gitURL or relative path (file:relative/path)
  *
  * @return {String} ID       moduleID without version.
  */
-function trimID(target) {
-  var parts;
-  // If GITURL, set target to repo name
-  var gitInfo = hostedGitInfo.fromUrl(target);
-  if (gitInfo) {
-    target = gitInfo.project;
-  } else if (isUrl(target)) {
-    // strip away .git and everything that follows
-    var strippedTarget = target.split('.git');
-    var re = /.*\/(.*)/;
-    // Grabs everything in url after last `/`
-    parts = strippedTarget[0].match(re);
+function trimID (target) {
+    var parts;
+    // If GITURL, set target to repo name
+    var gitInfo = hostedGitInfo.fromUrl(target);
+    if (gitInfo) {
+        target = gitInfo.project;
+    } else if (isUrl(target) || isGitUrl(target)) {
+        // strip away .git and everything that follows
+        var strippedTarget = target.split('.git');
+        var re = /.*\/(.*)/;
+        // Grabs everything in url after last `/`
+        parts = strippedTarget[0].match(re);
 
-    target = parts[1];
-  }
-
-  // If local path exists, try to get plugin id from package.json or set target to final directory
-  if (fs.existsSync(target)) {
-    var pluginId;
-    var pkgJsonPath = path.join(target, 'package.json');
-
-    if (fs.existsSync(pkgJsonPath)) {
-      pluginId = JSON.parse(fs.readFileSync(pkgJsonPath)).name;
+        target = parts[1];
     }
 
-    target = pluginId || path.basename(target);
-  }
-
-  // strip away everything after '@'
-  // also support scoped packages
-  if (target.indexOf('@') !== -1) {
-    parts = target.split('@');
-    if (parts.length > 1 && parts[0] === '') {
-      // scoped package
-      target = '@' + parts[1];
-    } else {
-      target = parts[0];
+    // If local path exists, try to get plugin id from package.json or set target to final directory
+    if (target.startsWith('file:')) {
+        // If target starts with file: prefix, strip it
+        target = target.substring(5);
     }
-  }
 
-  return target;
+    if (fs.existsSync(target)) {
+        var pluginId;
+        var pkgJsonPath = path.join(target, 'package.json');
+
+        if (fs.existsSync(pkgJsonPath)) {
+            pluginId = JSON.parse(fs.readFileSync(pkgJsonPath)).name;
+        }
+
+        target = pluginId || path.basename(target);
+    }
+
+    // strip away everything after '@'
+    // also support scoped packages
+    if (target.indexOf('@') !== -1) {
+        parts = target.split('@');
+        if (parts.length > 1 && parts[0] === '') {
+            // scoped package
+            target = '@' + parts[1];
+        } else {
+            target = parts[0];
+        }
+    }
+
+    return target;
 }
 
 /*
@@ -204,15 +210,15 @@ function trimID(target) {
  *
  */
 
-function getPath(id, dest, target) {
-  var destination = path.resolve(path.join(dest, id));
-  var finalDest = fs.existsSync(destination) ? destination : searchDirForTarget(dest, target);
+function getPath (id, dest, target) {
+    var destination = path.resolve(path.join(dest, id));
+    var finalDest = fs.existsSync(destination) ? destination : searchDirForTarget(dest, target);
 
-  if (!finalDest) {
-    throw new CordovaError('Failed to get absolute path to installed module');
-  }
+    if (!finalDest) {
+        throw new CordovaError('Failed to get absolute path to installed module');
+    }
 
-  return finalDest;
+    return finalDest;
 }
 
 module.exports.getPath = getPath;
@@ -226,23 +232,23 @@ module.exports.getPath = getPath;
  *
  */
 
-function searchDirForTarget(dest, target) {
-  if (!isUrl(target)) {
-    return;
-  }
+function searchDirForTarget (dest, target) {
+    if (!isUrl(target)) {
+        return;
+    }
 
-  var targetPathname = url.parse(target).pathname;
+    var targetPathname = url.parse(target).pathname;
 
-  var pkgJsonPath = fs.readdirSync(dest).map(function(dir) {
-      return path.join(dest, dir, 'package.json');
+    var pkgJsonPath = fs.readdirSync(dest).map(function (dir) {
+        return path.join(dest, dir, 'package.json');
     })
-    .filter(fs.existsSync)
-    .find(function(pkgJsonPath) {
-      var repo = JSON.parse(fs.readFileSync(pkgJsonPath)).repository;
-      return repo && url.parse(repo.url).pathname === targetPathname;
-    });
+        .filter(fs.existsSync)
+        .find(function (pkgJsonPath) {
+            var repo = JSON.parse(fs.readFileSync(pkgJsonPath)).repository;
+            return repo && url.parse(repo.url).pathname === targetPathname;
+        });
 
-  return pkgJsonPath && path.dirname(pkgJsonPath);
+    return pkgJsonPath && path.dirname(pkgJsonPath);
 }
 
 /*
@@ -250,10 +256,10 @@ function searchDirForTarget(dest, target) {
  * @return {Promise|Error} Returns true or a cordova error.
  */
 
-function isNpmInstalled() {
+function isNpmInstalled () {
   /*if (!shell.which('npm')) {
-    return Q.reject(new CordovaError('"npm" command line tool is not installed: make sure it is accessible on your PATH.'));
-  }
+        return Q.reject(new CordovaError('"npm" command line tool is not installed: make sure it is accessible on your PATH.'));
+    }
   return Q();*/
   return isPackageManagerInstalled('npm');
 }
@@ -286,43 +292,43 @@ module.exports.isPackageManagerInstalled = isPackageManagerInstalled;
  * @return {Promise|Error}    Returns a promise with the npm uninstall output or an error.
  *
  */
-module.exports.uninstall = function(target, dest, opts) {
+module.exports.uninstall = function (target, dest, opts) {
   var packageManager = opts.packageManager || 'npm';
   var fetchArgs = packageManager === 'yarn' ? ['remove'] : ['uninstall'];
-  opts = opts || {};
+    opts = opts || {};
 
-  // check if npm is installed on the system
+    // check if npm is installed on the system
   return isPackageManagerInstalled(packageManager)
-    .then(function() {
-      if (dest && target) {
-        // add target to fetchArgs Array
-        fetchArgs.push(target);
-      } else return Q.reject(new CordovaError('Need to supply a target and destination'));
+        .then(function () {
+            if (dest && target) {
+                // add target to fetchArgs Array
+                fetchArgs.push(target);
+            } else return Q.reject(new CordovaError('Need to supply a target and destination'));
 
-      // set the directory where npm uninstall will be run
-      opts.cwd = dest;
+            // set the directory where npm uninstall will be run
+            opts.cwd = dest;
 
-      // if user added --save flag, pass it to npm uninstall command
+            // if user added --save flag, pass it to npm uninstall command
       if (packageManager === 'npm') {
-        if (opts.save) {
-          fetchArgs.push('--save');
-        } else {
-          fetchArgs.push('--no-save');
-        }
+            if (opts.save) {
+                fetchArgs.push('--save');
+            } else {
+                fetchArgs.push('--no-save');
+            }
       }
 
-      // run npm uninstall, this will remove dependency
-      // from package.json if --save was used.
+            // run npm uninstall, this will remove dependency
+            // from package.json if --save was used.
       return superspawn.spawn(packageManager, fetchArgs, opts);
-    })
-    .then(function(res) {
-      var pluginDest = path.join(dest, 'node_modules', target);
-      if (fs.existsSync(pluginDest)) {
-        shell.rm('-rf', pluginDest);
-      }
-      return res;
-    })
-    .fail(function(err) {
-      return Q.reject(new CordovaError(err));
-    });
+        })
+        .then(function (res) {
+            var pluginDest = path.join(dest, 'node_modules', target);
+            if (fs.existsSync(pluginDest)) {
+                shell.rm('-rf', pluginDest);
+            }
+            return res;
+        })
+        .fail(function (err) {
+            return Q.reject(new CordovaError(err));
+        });
 };
